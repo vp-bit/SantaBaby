@@ -3,6 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import os
 import validators
+from datetime import datetime
 
 def validate_url(url):
     return validators.url(url)
@@ -14,15 +15,15 @@ def authenticate_google_sheets():
         "https://www.googleapis.com/auth/drive",
     ]
     # Use local
-    #credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    #if not credentials_file:
-        #st.error("Google Sheets credentials not found. Please set the GOOGLE_APPLICATION_CREDENTIALS environment variable.")
-        #return None
-    #creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
+    credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not credentials_file:
+        st.error("Google Sheets credentials not found. Please set the GOOGLE_APPLICATION_CREDENTIALS environment variable.")
+        return None
+    creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
 
     # Convert TOML to dictionary and authenticate
-    credentials_info = st.secrets["google_credentials"]
-    creds = Credentials.from_service_account_info(credentials_info, scopes=scope)
+    #credentials_info = st.secrets["google_credentials"]
+    #creds = Credentials.from_service_account_info(credentials_info, scopes=scope)
 
 
     client = gspread.authorize(creds)
@@ -58,8 +59,13 @@ def add_wish():#name, wish):
     url = st.session_state["url"] 
     if "sheet" in st.session_state and st.session_state["sheet"]:
         try:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
             wishes_sheet = st.session_state["sheet"].worksheet("Wishes")
-            wishes_sheet.append_row([wish, details, url, name, "Pending"])
+            wishes_sheet.append_row([wish, details, url, name, "Pending",current_time])
+            current_row = len(wishes_sheet.get_all_values())
+            cell = "J" + str(current_row)
+            formula = "=VLOOKUP(D"+str(current_row)+",Users!A:D,4,False)"
+            wishes_sheet.update_acell(cell, formula)
             st.session_state["wish"] = ""  # Clear the input after submission
             st.session_state["details"] = ""  # Clear the input after submission
             st.session_state["url"] = ""  # Clear the input after submission
@@ -68,6 +74,12 @@ def add_wish():#name, wish):
             st.error(f"Error adding wish: {e}")
     else:
         st.error("Sheet is not initialized.")
+
+# Define the reset function
+def reset_wish_inputs():
+    st.session_state["wish"] = ""
+    st.session_state["details"] = ""
+    st.session_state["url"] = ""
 
 # View Wishes (Santa)
 def view_wishes(sheet):
@@ -78,16 +90,20 @@ def view_wishes(sheet):
 def update_wish_status():
     wish_no = st.session_state["wish_no"]
     name = st.session_state["name"]
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
     wishes_sheet = st.session_state["sheet"].worksheet("Wishes")
     wishes_sheet.update_cell(wish_no , 5, "Claimed")
     wishes_sheet.update_cell(wish_no , 7, name)
+    wishes_sheet.update_cell(wish_no , 8, current_time)
 
 # Complete Wish (Santa)
 def complete_wish():
     wish_no = st.session_state["wish_no"]
     name = st.session_state["name"]
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format: YYYY-MM-DD HH:MM:SS
     wishes_sheet = st.session_state["sheet"].worksheet("Wishes")
     wishes_sheet.update_cell(wish_no , 5, "Purchased")
+    wishes_sheet.update_cell(wish_no , 9, current_time)
 
 # Initialize Session State Variables
 if "name" not in st.session_state:
@@ -186,14 +202,18 @@ else:
                 st.header(f"{name}'s wishes")
 
             # Input field for wish
-            st.session_state["wish"] = st.text_input("Enter your wish:", value=st.session_state["wish"])
-            st.session_state["details"] = st.text_area("Enter details about the wish:", value=st.session_state["details"])
-            st.session_state["url"] = st.text_input("Enter a URL for the wish (optional):", value=st.session_state["url"])
+            #st.session_state["wish"] = st.text_input("Enter your wish:", value=st.session_state["wish"])
+            #st.session_state["details"] = st.text_area("Enter details about the wish:", value=st.session_state["details"])
+            #st.session_state["url"] = st.text_input("Enter a URL for the wish (optional):", value=st.session_state["url"])
+            st.session_state["wish"] = st.text_input("Enter your wish:",  value=st.session_state["wish"])
+            st.session_state["details"] = st.text_area("Enter details about the wish:" ,value=st.session_state["details"])
+            st.session_state["url"] = st.text_input("Enter a URL for the wish (optional):" ,value=st.session_state["url"])
             
             # Submit button
-            if st.button("Submit Wish"):
+            if st.button("Submit Wish"):#, on_click=reset_wish_inputs):
                 #if st.session_state["wish"]:
                     add_wish()#name, st.session_state["wish"])
+                    reset_wish_inputs()
                     st.rerun()
                     #st.session_state["wish"] = ""  # Clear the input after submission
                     #st.experimental_rerun()  # Force a rerun to refresh the state
