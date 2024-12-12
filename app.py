@@ -18,7 +18,7 @@ def authenticate_google_sheets():
     #if not credentials_file:
         #st.error("Google Sheets credentials not found. Please set the GOOGLE_APPLICATION_CREDENTIALS environment variable.")
         #return None
-    creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
+    #creds = Credentials.from_service_account_file(credentials_file, scopes=scope)
 
     # Convert TOML to dictionary and authenticate
     credentials_info = st.secrets["google_credentials"]
